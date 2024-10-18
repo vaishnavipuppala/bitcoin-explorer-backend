@@ -19,7 +19,10 @@ async fn build_rocket() -> Rocket<Build> {
     tokio::spawn(ingestion::start_ingestion(db_pool.clone()));
 
     let cors = CorsOptions::default()
-        .allowed_origins(AllowedOrigins::all())
+    .allowed_origins(AllowedOrigins::some_exact(&[
+        "http://34.210.188.43:3000",
+        "http://localhost:3000",
+    ]))
         .to_cors()
         .expect("Failed to create CORS fairing");
 
