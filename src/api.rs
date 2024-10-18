@@ -103,8 +103,14 @@ async fn get_available_metrics() -> Json<Vec<String>> {
     ])
 }
 
+// pub fn start_server(pool: Pool<Postgres>) -> rocket::Rocket<rocket::Build> {
+//     rocket::build()
+//         .manage(pool)
+//         .mount("/", routes![get_block_metrics, get_historical_data, get_available_metrics])
+// }
 pub fn start_server(pool: Pool<Postgres>) -> rocket::Rocket<rocket::Build> {
     rocket::build()
         .manage(pool)
         .mount("/", routes![get_block_metrics, get_historical_data, get_available_metrics])
+        .configure(rocket::Config::figment().merge(("address", "0.0.0.0")))
 }
