@@ -20,7 +20,7 @@ services:
     image: nagavaishnavi16/bitcoin-explorer-frontend:latest
     platform: linux/amd64
     environment:
-      - REACT_APP_BACKEND_API_URL=http://34.216.190.26:8000
+      - REACT_APP_BACKEND_API_URL=http://34.210.188.43:8000
       - PORT=3000
     ports:
       - "3000:80"
