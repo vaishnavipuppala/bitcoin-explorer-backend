@@ -1,4 +1,4 @@
-name: Build and Deploy to EC2
+name: Build and Deploy Backend to EC2
 
 on:
   push:
@@ -8,7 +8,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
@@ -24,30 +23,34 @@ jobs:
       run: |
         docker push ${{ secrets.DOCKER_USERNAME }}/bitcoin-explorer-backend:latest
 
-    - name: Debug SSH Connection
-      run: |
-        echo "SSH_USER: ${{ secrets.SSH_USER }}"
-        echo "SSH_HOST: ${{ secrets.SSH_HOST }}"
-        echo "Checking SSH key:"
-        echo "${{ secrets.SSH_KEY }}" | ssh-keygen -l -f -
-
     - name: Set up SSH agent
-      uses: webfactory/ssh-agent@v0.7.0
+      uses: webfactory/ssh-agent@v0.5.3
       with:
         ssh-private-key: ${{ secrets.SSH_KEY }}
 
-    - name: Add host key
+    - name: Setup Docker permissions on EC2
       run: |
-        mkdir -p ~/.ssh
-        ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
-
-    - name: Test SSH Connection
-      run: ssh -v -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "echo 'SSH connection successful'"
+        ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
+          sudo usermod -aG docker ${{ secrets.SSH_USER }} &&
+          sudo systemctl restart docker
+        "
 
     - name: Log in to Docker Hub on EC2
       run: |
         ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
-          echo '${{ secrets.DOCKER_PASSWORD }}' | docker login -u '${{ secrets.DOCKER_USERNAME }}' --password-stdin
+          echo '${{ secrets.DOCKER_PASSWORD }}' | sudo docker login -u '${{ secrets.DOCKER_USERNAME }}' --password-stdin
+        "
+
+    - name: Create bitcoin-explorer directory
+      run: |
+        ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
+          mkdir -p /home/${{ secrets.SSH_USER }}/bitcoin-explorer
+        "
+
+    - name: Change ownership of bitcoin conf file
+      run: |
+        ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
+          sudo chown ${{ secrets.SSH_USER }}:${{ secrets.SSH_USER }} /home/${{ secrets.SSH_USER }}/bitcoin-explorer/bitcoin.conf || echo 'bitcoin.conf not found or ownership change not necessary'
         "
 
     - name: Copy Docker Compose file to EC2
@@ -57,8 +60,9 @@ jobs:
     - name: Deploy Docker Compose to EC2
       run: |
         ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
-          cd /home/${{ secrets.SSH_USER }}/bitcoin-explorer &&
-          docker-compose down &&
-          docker-compose pull &&
-          docker-compose up -d --build
+          set -e
+          cd /home/${{ secrets.SSH_USER }}/bitcoin-explorer || (echo 'Failed to change directory' && exit 1)
+          sudo docker-compose down || echo 'docker-compose down failed or not necessary'
+          sudo docker-compose pull || (echo 'docker-compose pull failed' && exit 1)
+          sudo docker-compose up -d --build || (echo 'docker-compose up failed' && exit 1)
         "
