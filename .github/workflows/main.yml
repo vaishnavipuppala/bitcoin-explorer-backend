@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
@@ -24,10 +24,25 @@ jobs:
       run: |
         docker push ${{ secrets.DOCKER_USERNAME }}/bitcoin-explorer-backend:latest
 
+    - name: Debug SSH Connection
+      run: |
+        echo "SSH_USER: ${{ secrets.SSH_USER }}"
+        echo "SSH_HOST: ${{ secrets.SSH_HOST }}"
+        echo "Checking SSH key:"
+        echo "${{ secrets.SSH_KEY }}" | ssh-keygen -l -f -
+
     - name: Set up SSH agent
-      uses: webfactory/ssh-agent@v0.5.3
+      uses: webfactory/ssh-agent@v0.7.0
       with:
         ssh-private-key: ${{ secrets.SSH_KEY }}
+
+    - name: Add host key
+      run: |
+        mkdir -p ~/.ssh
+        ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+    - name: Test SSH Connection
+      run: ssh -v -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "echo 'SSH connection successful'"
 
     - name: Log in to Docker Hub on EC2
       run: |
