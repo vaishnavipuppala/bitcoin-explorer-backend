@@ -2,6 +2,7 @@ use tokio::time::{sleep, Duration};
 use sqlx::Pool;
 use sqlx::Postgres;
 use crate::bitcoin;
+use crate::db;
 use reqwest;
 use serde::Deserialize;
 
@@ -36,13 +37,29 @@ pub async fn start_ingestion(pool: Pool<Postgres>) {
 
     loop {
         match bitcoin::fetch_block_data(&client) {
-            Ok((block_height, tx_volume)) => {
-                if let Ok((market_price, price_change)) = fetch_market_data().await {
-                    if let Err(e) = crate::db::insert_metrics(&pool, block_height, tx_volume, market_price, price_change).await {
-                        eprintln!("Failed to insert metrics: {:?}", e);
-                    }
-                } else {
-                    eprintln!("Failed to fetch market data");
+            Ok((block_height, tx_volume, transaction_count, block_size, total_fees, difficulty, hash_rate, mempool_size)) => {
+                println!("Fetched block data successfully");
+                match fetch_market_data().await {
+                    Ok((market_price, price_change)) => {
+                        println!("Fetched market data successfully");
+                        match db::insert_metrics(
+                            &pool, 
+                            block_height, 
+                            tx_volume, 
+                            market_price, 
+                            price_change, 
+                            transaction_count, 
+                            block_size, 
+                            total_fees,
+                            difficulty,
+                            hash_rate,
+                            mempool_size
+                        ).await {
+                            Ok(_) => println!("Successfully inserted metrics into database"),
+                            Err(e) => eprintln!("Failed to insert metrics: {:?}", e),
+                        }
+                    },
+                    Err(e) => eprintln!("Failed to fetch market data: {:?}", e),
                 }
             },
             Err(e) => eprintln!("Failed to fetch block data: {:?}", e),
