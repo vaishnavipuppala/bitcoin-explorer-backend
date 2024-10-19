@@ -10,11 +10,11 @@ COPY . .
 # Build the application
 RUN cargo build --release
 
-# Start a new stage with a minimal image
-FROM debian:buster-slim
+# Start a new stage with a newer Debian image
+FROM debian:bullseye-slim
 
 # Install necessary dependencies
-RUN apt-get update && apt-get install -y libssl-dev && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y libssl-dev ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory in the container
 WORKDIR /usr/local/bin
@@ -23,7 +23,7 @@ WORKDIR /usr/local/bin
 COPY --from=builder /usr/src/app/target/release/bitcoin-explorer-backend ./
 
 # Copy the .env file if it exists
-COPY --from=builder /usr/src/app/.env ./ 
+COPY --from=builder /usr/src/app/.env ./
 
 # Expose the port the app runs on
 EXPOSE 8000
