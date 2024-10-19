@@ -14,6 +14,7 @@ async fn build_rocket() -> Rocket<Build> {
     dotenv().ok();
 
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set in .env");
+    // let db_pool = db::init_db(&database_url).await.expect("Failed to initialize database");
     let db_pool = db::init_db(&database_url).await.expect("Failed to initialize database");
 
     tokio::spawn(ingestion::start_ingestion(db_pool.clone()));
@@ -25,7 +26,11 @@ async fn build_rocket() -> Rocket<Build> {
     ]))
         .to_cors()
         .expect("Failed to create CORS fairing");
-
+    let config = rocket::Config {
+        address: "0.0.0.0".parse().expect("Invalid bind address"),
+        port: 8000,
+        ..rocket::Config::default()
+    };
     api::start_server(db_pool)
         .attach(cors)
 }
