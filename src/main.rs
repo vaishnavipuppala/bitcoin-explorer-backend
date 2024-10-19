@@ -23,6 +23,7 @@ async fn build_rocket() -> Rocket<Build> {
     .allowed_origins(AllowedOrigins::some_exact(&[
         "http://34.210.188.43:3000",
         "http://localhost:3000",
+        "http://www.vaishnavipuppala.info:8000",
     ]))
         .to_cors()
         .expect("Failed to create CORS fairing");
